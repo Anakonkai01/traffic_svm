@@ -273,6 +273,10 @@ class TrafficSignConfig:
         self.SAVE_DEBUG_VIDEO = True
         self.DEBUG_VIDEO_PATH = DRIVE_PATH + 'videos/debug_pre_svm_detection.mp4'
 
+        # --- Save detector verified images ---
+        self.SAVE_DETECTOR_IMAGES = True
+        self.DETECTOR_IMAGES_FOLDER = DRIVE_PATH + 'check_data'
+
         # --- Processing limits ---
         self.MAX_FRAME_ID = 10000
         self.PROGRESS_UPDATE_INTERVAL = 100
@@ -1305,6 +1309,15 @@ def main():
         frames_with_detections = 0
         total_signs_recognized = 0
 
+        # Create folder for detector verified images
+        saved_images_count = 0
+        if config.SAVE_DETECTOR_IMAGES:
+            if not os.path.exists(config.DETECTOR_IMAGES_FOLDER):
+                os.makedirs(config.DETECTOR_IMAGES_FOLDER)
+                print(f"\n📁 Created folder: {config.DETECTOR_IMAGES_FOLDER}")
+            else:
+                print(f"\n📁 Using existing folder: {config.DETECTOR_IMAGES_FOLDER}")
+
         # Use threading for I/O and processing pipeline
         with ThreadPoolExecutor(max_workers=4) as executor:
             while True:
@@ -1323,6 +1336,16 @@ def main():
                     for (bbox, color, metrics) in smoothed_candidates:
                         if detector_svm.verify(frame, bbox):
                             verified_detections.append((bbox, color, metrics))
+                            
+                            # Save detector verified image
+                            if config.SAVE_DETECTOR_IMAGES:
+                                x, y, w, h = bbox
+                                if w > 0 and h > 0 and y+h <= frame.shape[0] and x+w <= frame.shape[1]:
+                                    sign_roi = frame[y:y+h, x:x+w]
+                                    img_filename = f"frame{frame_num:06d}_{color}_x{x}_y{y}.jpg"
+                                    img_path = os.path.join(config.DETECTOR_IMAGES_FOLDER, img_filename)
+                                    cv2.imwrite(img_path, sign_roi)
+                                    saved_images_count += 1
 
                 # Recognize with SVM Recognizer
                 recognized_detections = []
@@ -1344,8 +1367,11 @@ def main():
                     progress = int(frame_count_render / total_frames * 100)
                     elapsed = time.time() - start_render
                     current_fps = frame_count_render / elapsed if elapsed > 0 else 0
-                    print(f"   Rendered {frame_count_render}/{total_frames} frames ({progress}%) "
-                          f"- {current_fps:.1f} FPS - {total_signs_recognized} signs")
+                    status_msg = f"   Rendered {frame_count_render}/{total_frames} frames ({progress}%) " \
+                                 f"- {current_fps:.1f} FPS - {total_signs_recognized} signs"
+                    if config.SAVE_DETECTOR_IMAGES:
+                        status_msg += f" - {saved_images_count} imgs saved"
+                    print(status_msg)
 
                 del frame, frame_output
 
@@ -1357,6 +1383,8 @@ def main():
         print(f"   Average Speed: {frame_count_render/render_time:.1f} FPS")
         print(f"   Frames with signs: {frames_with_detections}/{frame_count_render}")
         print(f"   Total signs recognized: {total_signs_recognized}")
+        if config.SAVE_DETECTOR_IMAGES:
+            print(f"   Detector images saved: {saved_images_count}")
 
         # =====================================================================
         # FINAL SUMMARY
@@ -1370,6 +1398,9 @@ def main():
 
         if config.SAVE_DEBUG_VIDEO:
             print(f"📁 Debug (Pre-SVM): {config.DEBUG_VIDEO_PATH}")
+
+        if config.SAVE_DETECTOR_IMAGES:
+            print(f"📁 Detector Images: {config.DETECTOR_IMAGES_FOLDER} ({saved_images_count} images)")
 
         if config.SAVE_MASK_VIDEOS:
             print(f"\n📁 Mask videos:")
