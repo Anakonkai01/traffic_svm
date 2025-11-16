@@ -135,8 +135,8 @@ def train_svm_detector(positive_image_dir: str, negative_image_dir: str, model_s
 # CHẠY
 # =============================================================================
 if __name__ == "__main__":
-    positive_image_dir = "data_detector/positives"
-    negative_image_dir = "data_detector/negatives"
+    positive_image_dir = "../data_detector/positives"
+    negative_image_dir = "../data_detector/negatives"
     # Đặt tên mới để phân biệt với model cũ
     model_save_path = "models/svm_detector_model_color_rbf_v1.xml" 
     

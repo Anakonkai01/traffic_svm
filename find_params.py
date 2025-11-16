@@ -13,7 +13,7 @@ os.environ["QT_LOGGING_RULES"] = "*.debug=false;qt.qpa.*=false"
 class TrafficSignConfig:
     def __init__(self, selected_colors=None):
         # --- File paths ---
-        self.INPUT_VIDEO_PATH = 'video/video2.mp4'
+        self.INPUT_VIDEO_PATH = 'videos/video2.mp4'
         self.STUDENT_IDS = "523H0164_523H0177_523H0145"
         
         # --- Performance settings ---
@@ -39,7 +39,7 @@ class TrafficSignConfig:
                 'shape_type': 'circle'
             },
             'red': {
-                'hsv_lower': np.array([117, 40, 0]),
+                'hsv_lower': np.array([117, 50, 0]),
                 'hsv_upper': np.array([179, 255, 255]),
                 'morph_ksize': 7, 'open_iter': 0, 'close_iter': 0,
                 'blur_ksize': 5,
@@ -58,8 +58,8 @@ class TrafficSignConfig:
         
         # --- Image processing (shared) ---
         self.CLAHE_CLIP_LIMIT = 3.0  # Already normalized
-        self.CLAHE_TILE_GRID_SIZE = (1, 1)
-        self.SATURATION_BOOST_FACTOR = 1.5
+        self.CLAHE_TILE_GRID_SIZE = (8, 8)
+        self.SATURATION_BOOST_FACTOR = 4.5
         
         # --- Shape detection parameters ---
         self.SHAPE_PARAMS = {
@@ -123,10 +123,10 @@ class TrafficSignDetector:
         kernel_dilate = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
         mask = cv2.dilate(mask, kernel_dilate, iterations=1)
         
-        kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close, iterations=2)
         
-        
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_close,iterations=2)
         kernel_erode = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
         mask = cv2.erode(mask, kernel_erode, iterations=2)
         
@@ -867,7 +867,19 @@ def main():
         print("STARTING REAL-TIME PROCESSING...")
         print("=" * 70 + "\n")
         
+        # Store current frame data for reprocessing when paused
+        current_frame = None
+        current_frame_resized = None
+        
         while True:
+            # Update parameters from trackbars (always, even when paused)
+            preprocessing_changed = trackbar_ctrl.update_params(verbose=verbose_mode)
+            
+            # Only recreate detector if CLAHE/Saturation changed (these affect preprocessing)
+            # Color HSV and shape parameters don't require detector recreation
+            if preprocessing_changed:
+                detector = TrafficSignDetector(config)
+            
             if not paused:
                 ret, frame = cap.read()
                 if not ret:
@@ -884,19 +896,20 @@ def main():
                     fps_start_time = time.time()
                     fps_frame_count = 0
                 
+                # Store frame for reprocessing when paused
+                current_frame = frame.copy()
                 # Resize frame for processing (MAJOR SPEEDUP)
-                frame_resized = cv2.resize(frame, (w_process, h_process))
+                current_frame_resized = cv2.resize(frame, (w_process, h_process))
                 
-                # Update parameters from trackbars
-                preprocessing_changed = trackbar_ctrl.update_params(verbose=verbose_mode)
-                
-                # Only recreate detector if CLAHE/Saturation changed (these affect preprocessing)
-                # Color HSV and shape parameters don't require detector recreation
-                if preprocessing_changed:
-                    detector = TrafficSignDetector(config)
+                frame_count += 1
+            
+            # Process frame (whether paused or playing)
+            if current_frame_resized is not None:
+                # Process resized frame
+                detections, masks = detector.process_frame(current_frame_resized, full_frame_dims)
                 
                 # Process resized frame
-                detections, masks = detector.process_frame(frame_resized, full_frame_dims)
+                detections, masks = detector.process_frame(current_frame_resized, full_frame_dims)
                 
                 # Scale detections back to display size
                 scale_factor = config.DISPLAY_SCALE / config.PROCESS_SCALE
@@ -912,7 +925,7 @@ def main():
                     scaled_detections.append((scaled_bbox, color, metrics))
                 
                 # Resize original frame for display
-                frame_display_sized = cv2.resize(frame, (w_display, h_display))
+                frame_display_sized = cv2.resize(current_frame, (w_display, h_display))
                 
                 # Visualize on display-sized frame
                 frame_output = visualizer.draw_all(frame_display_sized, frame_count, scaled_detections, current_fps)

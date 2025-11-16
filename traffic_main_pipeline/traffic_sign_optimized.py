@@ -40,7 +40,7 @@ This is useful for:
 DRIVE_PATH = "../"
 
 
-MODEL_DETECTOR_PATH = DRIVE_PATH + "models/svm_sign_detector_v4.xml"
+MODEL_DETECTOR_PATH = DRIVE_PATH + "models/dector_v5_nhut.xml"
 MODEL_RECOGNIZER_PATH = DRIVE_PATH + "models/svm_sign_recognizer_v3.xml"
 
 
@@ -321,7 +321,7 @@ class TrafficSignConfig:
                 'shape_type': 'circle'
             },
             'red': {
-                'hsv_lower': np.array([117, 40, 0]),
+                'hsv_lower': np.array([110, 210, 75]),
                 'hsv_upper': np.array([179, 255, 255]),
                 'morph_ksize': 2, 'open_iter': 2, 'close_iter': 5,
                 'blur_ksize': 5,
@@ -340,8 +340,8 @@ class TrafficSignConfig:
 
         # --- Image processing ---
         self.CLAHE_CLIP_LIMIT = 3.0
-        self.CLAHE_TILE_GRID_SIZE = (1, 1)
-        self.SATURATION_BOOST_FACTOR = 1.5
+        self.CLAHE_TILE_GRID_SIZE = (8, 8)
+        self.SATURATION_BOOST_FACTOR = 4.5
         self.PROCESSING_HEIGHT_PERCENT = 1.0
 
         # --- Shape detection parameters ---
@@ -364,8 +364,8 @@ class TrafficSignConfig:
         # --- Tracking & Smoothing ---
         self.TRACKING_PARAMS = {
             'max_gap_sec': 1.0,
-            'iou_threshold': 0.3,
-            'smoothing_window': 10
+            'iou_threshold': 0.1,
+            'smoothing_window': 15
         }
 
 
@@ -561,12 +561,12 @@ class TrafficSignDetector:
         kernel_dilate = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
         mask = cv2.dilate(mask, kernel_dilate, iterations=1)
         
-        kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_close,iterations=2)
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close, iterations=2)
         
-        
         kernel_erode = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
-        mask = cv2.erode(mask, kernel_erode, iterations=3)
+        mask = cv2.erode(mask, kernel_erode, iterations=2)
 
         return mask
 
