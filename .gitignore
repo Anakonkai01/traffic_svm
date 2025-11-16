@@ -1,0 +1,27 @@
+# ignore image, video, and audio files in all directories
+
+
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.svg
+*.webp
+*.psd
+*.ai
+*.eps
+*.indd
+*.raw
+*.cr2
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.wmv
+*.flv
+*.mp3
+*.wav
+*.flac 
+
