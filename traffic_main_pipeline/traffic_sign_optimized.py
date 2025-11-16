@@ -259,12 +259,12 @@ class HardwareDetector:
 class TrafficSignConfig:
     def __init__(self, auto_detect: bool = True):
         # --- File paths ---
-        self.INPUT_VIDEO_PATH = DRIVE_PATH + 'videos/video1.mp4'
-        self.OUTPUT_VIDEO_PATH = DRIVE_PATH + 'videos/video_output1.mp4'
+        self.INPUT_VIDEO_PATH = DRIVE_PATH + 'videos/video2.mp4'
+        self.OUTPUT_VIDEO_PATH = DRIVE_PATH + 'videos/video_output2.mp4'
         self.STUDENT_IDS = "523H0164_523H0177_523H0145"
 
         # --- Mask video output ---
-        self.SAVE_MASK_VIDEOS = False
+        self.SAVE_MASK_VIDEOS = True
         self.MASK_VIDEO_BLUE = DRIVE_PATH + 'videos/mask_video_blue.mp4'
         self.MASK_VIDEO_RED = DRIVE_PATH + 'videos/mask_video_red.mp4'
         self.MASK_VIDEO_YELLOW = DRIVE_PATH + 'videos/mask_video_yellow.mp4'
@@ -313,11 +313,11 @@ class TrafficSignConfig:
         # --- Color-specific parameters ---
         self.COLOR_PARAMS = {
             'blue': {
-                'hsv_lower': np.array([102, 200, 70]),
-                'hsv_upper': np.array([150, 255, 230]),
+                'hsv_lower': np.array([0, 200, 70]),
+                'hsv_upper': np.array([0, 255, 230]),
                 'morph_ksize': 7, 'open_iter': 1, 'close_iter': 5,
                 'blur_ksize': 5,
-                'roi': (0.0, 0.0, 0.6, 1.0),
+                'roi': (0.0, 0.0, 1.0, 1.0),
                 'shape_type': 'circle'
             },
             'red': {
@@ -349,8 +349,8 @@ class TrafficSignConfig:
             'circle': {
                 'min_area': 200, 'max_area': 15000,
                 'trust_threshold': 1000,
-                'small_circularity': 0.8,
-                'large_circularity': 0.9
+                'small_circularity': 0.75,
+                'large_circularity': 0.8
             },
             'triangle': {
                 'min_area': 200, 'max_area': 50000,
@@ -566,7 +566,7 @@ class TrafficSignDetector:
         
         
         kernel_erode = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
-        mask = cv2.erode(mask, kernel_erode, iterations=2)
+        mask = cv2.erode(mask, kernel_erode, iterations=3)
 
         return mask
 
