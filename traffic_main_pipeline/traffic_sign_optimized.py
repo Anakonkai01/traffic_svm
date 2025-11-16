@@ -37,11 +37,11 @@ This is useful for:
 """
 
 
-DRIVE_PATH = ""
+DRIVE_PATH = "../"
 
 
-MODEL_DETECTOR_PATH = DRIVE_PATH + "svm_sign_detector_v4.xml"
-MODEL_RECOGNIZER_PATH = DRIVE_PATH + "svm_sign_recognizer_v3.xml"
+MODEL_DETECTOR_PATH = DRIVE_PATH + "models/svm_sign_detector_v4.xml"
+MODEL_RECOGNIZER_PATH = DRIVE_PATH + "models/svm_sign_recognizer_v3.xml"
 
 
 # =============================================================================
@@ -343,15 +343,15 @@ class TrafficSignConfig:
         # --- Shape detection parameters ---
         self.SHAPE_PARAMS = {
             'circle': {
-                'min_area': 100, 'max_area': 15000,
+                'min_area': 200, 'max_area': 15000,
                 'trust_threshold': 1000,
-                'small_circularity': 0.75,
-                'large_circularity': 0.93
+                'small_circularity': 0.8,
+                'large_circularity': 0.9
             },
             'triangle': {
-                'min_area': 100, 'max_area': 50000,
+                'min_area': 200, 'max_area': 50000,
                 'trust_threshold': 1500,
-                'min_solidity': 0.725,
+                'min_solidity': 0.7,
                 'epsilon_factor': 0.03,
                 'max_vertices': 7
             }
@@ -359,9 +359,9 @@ class TrafficSignConfig:
 
         # --- Tracking & Smoothing ---
         self.TRACKING_PARAMS = {
-            'max_gap_sec': 0.5,
+            'max_gap_sec': 1.0,
             'iou_threshold': 0.3,
-            'smoothing_window': 5
+            'smoothing_window': 10
         }
 
 
@@ -880,13 +880,23 @@ class Visualizer:
                 ]
             
             # Draw metrics text above bounding box
-            text_y_start = max(y - 10, 20)
             font = cv2.FONT_HERSHEY_SIMPLEX
             font_scale = 0.45
             thickness = 1
+            line_height = 15
+            
+            # Calculate total height needed for all text lines
+            total_text_height = len(metrics_text) * line_height
+            
+            # Ensure text starts above bbox but stays on screen
+            # If bbox is too high, draw below it instead
+            if y - total_text_height - 10 > 0:
+                text_y_start = y - 10
+            else:
+                text_y_start = y + h + 20  # Draw below bbox if not enough space above
             
             for i, text in enumerate(metrics_text):
-                text_y = text_y_start - (len(metrics_text) - 1 - i) * 15
+                text_y = text_y_start + i * line_height
                 (text_w, text_h), _ = cv2.getTextSize(text, font, font_scale, thickness)
                 cv2.rectangle(frame_output, (x, text_y - text_h - 3),
                             (x + text_w + 4, text_y + 3), (0, 0, 0), -1)
