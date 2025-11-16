@@ -12,6 +12,29 @@ from concurrent.futures import ThreadPoolExecutor
 import queue
 from functools import partial
 
+"""
+TRAFFIC SIGN DETECTION SYSTEM - OPTIMIZED VERSION
+
+DEBUG VIDEO FEATURE:
+====================
+To enable debug video output (before SVM detection):
+1. Open this file and locate the TrafficSignConfig class
+2. Set: config.SAVE_DEBUG_VIDEO = True
+3. Optionally modify: config.DEBUG_VIDEO_PATH = 'your/path/debug.mp4'
+
+The debug video will show:
+- All detected candidates BEFORE SVM verification
+- Color-coded bounding boxes (Blue/Red/Yellow)
+- Detailed metrics (Area, Circularity/Solidity)
+- ROI boxes for each color channel
+- Frame numbers and detection counts
+
+This is useful for:
+- Debugging detection pipeline
+- Analyzing false positives before SVM filtering
+- Comparing pre-SVM vs post-SVM results
+- Tuning color detection parameters
+"""
 
 
 DRIVE_PATH = ""
@@ -246,6 +269,10 @@ class TrafficSignConfig:
         self.MASK_VIDEO_RED = DRIVE_PATH + 'videos/mask_video_red.mp4'
         self.MASK_VIDEO_YELLOW = DRIVE_PATH + 'videos/mask_video_yellow.mp4'
 
+        # --- Debug video output (pre-SVM detection) ---
+        self.SAVE_DEBUG_VIDEO = True
+        self.DEBUG_VIDEO_PATH = DRIVE_PATH + 'videos/debug_pre_svm_detection.mp4'
+
         # --- Processing limits ---
         self.MAX_FRAME_ID = 10000
         self.PROGRESS_UPDATE_INTERVAL = 100
@@ -286,7 +313,7 @@ class TrafficSignConfig:
                 'hsv_upper': np.array([150, 255, 230]),
                 'morph_ksize': 7, 'open_iter': 1, 'close_iter': 5,
                 'blur_ksize': 5,
-                'roi': (0.0, 0.0, 1.0, 1.0),
+                'roi': (0.0, 0.0, 0.6, 1.0),
                 'shape_type': 'circle'
             },
             'red': {
@@ -316,10 +343,10 @@ class TrafficSignConfig:
         # --- Shape detection parameters ---
         self.SHAPE_PARAMS = {
             'circle': {
-                'min_area': 200, 'max_area': 15000,
+                'min_area': 100, 'max_area': 15000,
                 'trust_threshold': 1000,
-                'small_circularity': 0.8,
-                'large_circularity': 0.8
+                'small_circularity': 0.75,
+                'large_circularity': 0.93
             },
             'triangle': {
                 'min_area': 100, 'max_area': 50000,
@@ -332,9 +359,9 @@ class TrafficSignConfig:
 
         # --- Tracking & Smoothing ---
         self.TRACKING_PARAMS = {
-            'max_gap_sec': 1.0,
+            'max_gap_sec': 0.5,
             'iou_threshold': 0.3,
-            'smoothing_window': 15
+            'smoothing_window': 5
         }
 
 
@@ -793,6 +820,81 @@ class Visualizer:
 
         return frame
 
+    def draw_debug_detections(self, frame: np.ndarray, frame_num: int,
+                              detections: List[Tuple], roi_params_dict: Dict) -> np.ndarray:
+        """Draw debug information for pre-SVM detection phase with detailed metrics"""
+        frame_output = frame.copy()
+        
+        # Draw student IDs
+        frame_output = self._draw_student_ids(frame_output)
+        
+        # Draw frame ID
+        frame_output = self._draw_frame_id(frame_output, frame_num)
+        
+        # Draw ROI boxes
+        frame_output = self._draw_roi_boxes(frame_output, roi_params_dict)
+        
+        # Draw detection count
+        text = f"Pre-SVM Detections: {len(detections)}"
+        x, y = 10, 110
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        (text_w, text_h), _ = cv2.getTextSize(text, font, 0.8, 2)
+        cv2.rectangle(frame_output, (x - 5, y - text_h - 5),
+                     (x + text_w + 5, y + 5), (0, 0, 0), -1)
+        cv2.putText(frame_output, text, (x, y), font, 0.8, (255, 165, 0), 2, cv2.LINE_AA)
+        
+        # Draw all detections with detailed metrics
+        for bbox, color_type, metrics in detections:
+            x, y, w, h = bbox
+            
+            # Color-coded boxes based on detection color
+            if color_type == 'blue':
+                box_color = (255, 0, 0)  # Blue
+            elif color_type == 'red':
+                box_color = (0, 0, 255)  # Red
+            elif color_type == 'yellow':
+                box_color = (0, 255, 255)  # Yellow
+            else:
+                box_color = (128, 128, 128)  # Gray
+            
+            # Draw bounding box
+            cv2.rectangle(frame_output, (x, y), (x + w, y + h), box_color, 2)
+            
+            # Prepare detailed metrics text
+            shape = metrics.get('shape', 'unknown')
+            area = metrics.get('area', 0)
+            
+            if shape == 'circle':
+                circularity = metrics.get('circularity', 0)
+                metrics_text = [
+                    f"{color_type.upper()}",
+                    f"Area:{area}",
+                    f"Circ:{circularity:.2f}"
+                ]
+            else:
+                solidity = metrics.get('solidity', 0)
+                metrics_text = [
+                    f"{color_type.upper()}",
+                    f"Area:{area}",
+                    f"Sol:{solidity:.2f}"
+                ]
+            
+            # Draw metrics text above bounding box
+            text_y_start = max(y - 10, 20)
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.45
+            thickness = 1
+            
+            for i, text in enumerate(metrics_text):
+                text_y = text_y_start - (len(metrics_text) - 1 - i) * 15
+                (text_w, text_h), _ = cv2.getTextSize(text, font, font_scale, thickness)
+                cv2.rectangle(frame_output, (x, text_y - text_h - 3),
+                            (x + text_w + 4, text_y + 3), (0, 0, 0), -1)
+                cv2.putText(frame_output, text, (x + 2, text_y),
+                          font, font_scale, box_color, thickness, cv2.LINE_AA)
+        
+        return frame_output
+
 
 # =============================================================================
 # CLASS 5: SVM DETECTOR
@@ -1042,8 +1144,20 @@ def main():
                 'yellow': cv2.VideoWriter(config.MASK_VIDEO_YELLOW, fourcc, fps, (w_crop, h_crop), False)
             }
 
+        # Prepare debug video writer (pre-SVM detection)
+        debug_writer = None
+        if config.SAVE_DEBUG_VIDEO:
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            debug_writer = cv2.VideoWriter(config.DEBUG_VIDEO_PATH, fourcc, fps, (w_orig, h_orig))
+            if debug_writer.isOpened():
+                print(f"\n📹 Debug video enabled: {config.DEBUG_VIDEO_PATH}")
+            else:
+                print(f"\n⚠️  Warning: Cannot create debug video writer")
+                debug_writer = None
+
         # Process frames in parallel batches
         frame_batch = []
+        frame_full_batch = []  # Store full frames for debug video
         frame_count = 0
         
         # Create a pool of workers
@@ -1057,10 +1171,18 @@ def main():
                 frame_to_process = frame_full[0:h_crop, 0:w_crop]
                 
                 frame_batch.append((frame_num, frame_to_process, config, full_frame_dims))
+                if debug_writer:
+                    frame_full_batch.append((frame_num, frame_full.copy()))
                 
                 # Process batch when full
                 if len(frame_batch) >= config.BATCH_SIZE:
                     results = pool.map(process_frame_worker, frame_batch)
+                    
+                    # Create dictionary to map frame_num to detections for debug video
+                    if debug_writer and frame_full_batch:
+                        detections_map = {}
+                        for frame_num, detections, masks in results:
+                            detections_map[frame_num] = detections
                     
                     for frame_num, detections, masks in results:
                         # Add to tracker
@@ -1073,6 +1195,16 @@ def main():
                             for color in ['blue', 'red', 'yellow']:
                                 if color in masks and mask_writers[color].isOpened():
                                     mask_writers[color].write(masks[color])
+                    
+                    # Write debug video frames with all detections
+                    if debug_writer and frame_full_batch:
+                        for frame_num, frame_full in frame_full_batch:
+                            detections = detections_map.get(frame_num, [])
+                            debug_frame = visualizer.draw_debug_detections(
+                                frame_full, frame_num, detections, roi_pixel_map
+                            )
+                            debug_writer.write(debug_frame)
+                        frame_full_batch.clear()
                     
                     frame_count += len(frame_batch)
                     frame_batch.clear()
@@ -1087,6 +1219,13 @@ def main():
             # Process remaining frames
             if frame_batch:
                 results = pool.map(process_frame_worker, frame_batch)
+                
+                # Create dictionary for debug video
+                if debug_writer and frame_full_batch:
+                    detections_map = {}
+                    for frame_num, detections, masks in results:
+                        detections_map[frame_num] = detections
+                
                 for frame_num, detections, masks in results:
                     if detections:
                         for bbox, color, metrics in detections:
@@ -1097,6 +1236,16 @@ def main():
                             if color in masks and mask_writers[color].isOpened():
                                 mask_writers[color].write(masks[color])
                 
+                # Write remaining debug video frames
+                if debug_writer and frame_full_batch:
+                    for frame_num, frame_full in frame_full_batch:
+                        detections = detections_map.get(frame_num, [])
+                        debug_frame = visualizer.draw_debug_detections(
+                            frame_full, frame_num, detections, roi_pixel_map
+                        )
+                        debug_writer.write(debug_frame)
+                    frame_full_batch.clear()
+                
                 frame_count += len(frame_batch)
 
         frame_reader.stop()
@@ -1104,6 +1253,10 @@ def main():
         if mask_writers:
             for writer in mask_writers.values():
                 writer.release()
+        
+        if debug_writer:
+            debug_writer.release()
+            print(f"✅ Debug video saved: {config.DEBUG_VIDEO_PATH}")
 
         detection_time = time.time() - start_detection
         print(f"\n✅ Detection Pass completed in {detection_time:.2f}s")
@@ -1204,6 +1357,9 @@ def main():
         print("✅ PROCESSING COMPLETE!")
         print("=" * 70)
         print(f"📁 Output: {config.OUTPUT_VIDEO_PATH}")
+
+        if config.SAVE_DEBUG_VIDEO:
+            print(f"📁 Debug (Pre-SVM): {config.DEBUG_VIDEO_PATH}")
 
         if config.SAVE_MASK_VIDEOS:
             print(f"\n📁 Mask videos:")
