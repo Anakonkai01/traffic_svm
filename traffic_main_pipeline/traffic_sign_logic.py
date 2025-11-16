@@ -274,7 +274,7 @@ class TrafficSignConfig:
         self.DEBUG_VIDEO_PATH = DRIVE_PATH + 'videos/debug_pre_svm_detection.mp4'
 
         # --- Save detector verified images ---
-        self.SAVE_DETECTOR_IMAGES = True
+        self.SAVE_DETECTOR_IMAGES = False
         self.DETECTOR_IMAGES_FOLDER = DRIVE_PATH + 'check_data'
 
         # --- Processing limits ---
@@ -313,8 +313,8 @@ class TrafficSignConfig:
         # --- Color-specific parameters ---
         self.COLOR_PARAMS = {
             'blue': {
-                'hsv_lower': np.array([0, 200, 70]),
-                'hsv_upper': np.array([0, 255, 230]),
+                'hsv_lower': np.array([102, 216, 81]),
+                'hsv_upper': np.array([144, 255, 227]),
                 'morph_ksize': 7, 'open_iter': 1, 'close_iter': 5,
                 'blur_ksize': 5,
                 'roi': (0.0, 0.0, 1.0, 1.0),
@@ -347,13 +347,13 @@ class TrafficSignConfig:
         # --- Shape detection parameters ---
         self.SHAPE_PARAMS = {
             'circle': {
-                'min_area': 200, 'max_area': 15000,
+                'min_area': 600, 'max_area': 15000,
                 'trust_threshold': 1000,
                 'small_circularity': 0.75,
                 'large_circularity': 0.8
             },
             'triangle': {
-                'min_area': 200, 'max_area': 50000,
+                'min_area': 600, 'max_area': 50000,
                 'trust_threshold': 1500,
                 'min_solidity': 0.7,
                 'epsilon_factor': 0.03,

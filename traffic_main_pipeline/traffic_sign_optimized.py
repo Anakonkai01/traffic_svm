@@ -313,8 +313,8 @@ class TrafficSignConfig:
         # --- Color-specific parameters ---
         self.COLOR_PARAMS = {
             'blue': {
-                'hsv_lower': np.array([0, 200, 70]),
-                'hsv_upper': np.array([0, 255, 230]),
+                'hsv_lower': np.array([102, 216, 81]),
+                'hsv_upper': np.array([144, 255, 227]),
                 'morph_ksize': 7, 'open_iter': 1, 'close_iter': 5,
                 'blur_ksize': 5,
                 'roi': (0.0, 0.0, 1.0, 1.0),
@@ -363,7 +363,7 @@ class TrafficSignConfig:
 
         # --- Tracking & Smoothing ---
         self.TRACKING_PARAMS = {
-            'max_gap_sec': 1.0,
+            'max_gap_sec': 2.0,
             'iou_threshold': 0.1,
             'smoothing_window': 15
         }

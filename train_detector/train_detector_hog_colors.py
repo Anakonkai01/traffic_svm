@@ -41,69 +41,100 @@ def load_images_and_extract_features(path: str) -> Optional[np.ndarray]:
         return None
 
 # =============================================================================
-# HÀM HUẤN LUYỆN SVM (MODEL B - NÂNG CẤP)
+# HÀM HUẤN LUYỆN SVM (MODEL B - NÂNG CẤP VÀ TỐI ƯU RAM)
 # =============================================================================
 def train_svm_detector(positive_image_dir: str, negative_image_dir: str, model_save_path: str):
     print("="*70)
     print("  BẮT ĐẦU HUẤN LUYỆN MODEL B (DETECTOR) - CAO CẤP (Color HOG + RBF)")
+    print("  (PHIÊN BẢN TỐI ƯU RAM)")
     print("="*70)
-    
-    features = []
-    labels = []
     
     positive_image_paths = glob.glob(os.path.join(positive_image_dir, '*.*'))
     negative_image_paths = glob.glob(os.path.join(negative_image_dir, '*.*'))
     
-    # --- Label 1: Positive ---
-    pos_count = 0
-    print(f"Loading positive samples (Color HOG) từ: {positive_image_dir}")
     total_pos = len(positive_image_paths)
+    total_neg = len(negative_image_paths)
+    total_samples_max = total_pos + total_neg
+
+    if total_pos == 0 or total_neg == 0:
+        print("Lỗi: Không tìm thấy ảnh positive hoặc negative.")
+        return
+
+    # --- Lấy kích thước vector đặc trưng ---
+    print("Đang kiểm tra kích thước vector đặc trưng...")
+    sample_features = load_images_and_extract_features(positive_image_paths[0])
+    if sample_features is None:
+        print(f"Lỗi: Không thể đọc ảnh mẫu: {positive_image_paths[0]}")
+        return
+    
+    feature_size = sample_features.shape[0]
+    print(f"Kích thước vector HOG Màu: {feature_size} (1764 * 3 = 5292)")
+
+    # --- TỐI ƯU RAM: CẤP PHÁT TRƯỚC (PRE-ALLOCATION) ---
+    # Thay vì dùng list.append, chúng ta tạo 2 mảng NumPy lớn ngay từ đầu
+    print(f"Cấp phát trước bộ nhớ cho {total_samples_max} mẫu...")
+    features_np = np.zeros((total_samples_max, feature_size), dtype=np.float32)
+    labels_np = np.zeros(total_samples_max, dtype=np.int32)
+    
+    current_index = 0
+    
+    # --- Label 1: Positive ---
+    print(f"Loading positive samples (Color HOG) từ: {positive_image_dir}")
+    pos_count = 0
     for i, img_path in enumerate(positive_image_paths):
         if (i + 1) % 100 == 0:
             print(f"    ... Đã xử lý {i + 1} / {total_pos} ảnh positive...")
         hog_features = load_images_and_extract_features(img_path)
         if hog_features is not None:
-            features.append(hog_features)
-            labels.append(1)
+            features_np[current_index] = hog_features
+            labels_np[current_index] = 1
+            current_index += 1
             pos_count += 1
     print(f"  -> Đã tải {pos_count} / {total_pos} mẫu positive.")
 
     # --- Label 0: Negative ---
-    neg_count = 0
     print(f"Loading negative samples (Color HOG) từ: {negative_image_dir}")
-    total_neg = len(negative_image_paths)
+    neg_count = 0
     for i, img_path in enumerate(negative_image_paths):
         if (i + 1) % 100 == 0:
             print(f"    ... Đã xử lý {i + 1} / {total_neg} ảnh negative...")
         hog_features = load_images_and_extract_features(img_path)
         if hog_features is not None:
-            features.append(hog_features)
-            labels.append(0)
+            features_np[current_index] = hog_features
+            labels_np[current_index] = 0
+            current_index += 1
             neg_count += 1
     print(f"  -> Đã tải {neg_count} / {total_neg} mẫu negative.")
     
+    total_valid_samples = current_index
+    print(f"\nTổng số mẫu hợp lệ: {total_valid_samples} (từ {total_samples_max} tệp)")
+
     if pos_count == 0 or neg_count == 0:
         print("Lỗi: Cần có cả dữ liệu positive và negative để huấn luyện.")
         return
 
-    # --- Xáo trộn ---
-    print("\nShuffling data...")
-    combined = list(zip(features, labels))
-    random.shuffle(combined)
-    features, labels = zip(*combined)
+    # --- TỐI ƯU RAM: Cắt mảng về kích thước thật ---
+    print("Cắt mảng về kích thước thực...")
+    features = features_np[:total_valid_samples]
+    labels = labels_np[:total_valid_samples]
     
-    features = np.array(features, dtype=np.float32)
-    labels = np.array(labels, dtype=np.int32)
+    # Giải phóng bộ nhớ mảng lớn ban đầu
+    del features_np, labels_np 
+
+    # --- TỐI ƯU RAM: Xáo trộn bằng chỉ số (index) ---
+    print("Shuffling data (sử dụng indices)...")
+    indices = np.arange(total_valid_samples)
+    random.shuffle(indices)
+    
+    features = features[indices]
+    labels = labels[indices]
     
     print(f"Total samples for training: {len(labels)}")
-    if len(features) > 0:
-        print(f"Kích thước vector HOG Màu: {features.shape[1]}")
 
-    # --- CẤU HÌNH VÀ HUẤN LUYỆN (ĐÃ THAY ĐỔI) ---
+    # --- CẤU HÌNH VÀ HUẤN LUYỆN ---
     print("\nConfiguring SVM for HIGH ACCURACY (RBF Kernel)...")
     svm = cv2.ml.SVM_create()
     svm.setType(cv2.ml.SVM_C_SVC)
-    # 1. Sử dụng Kernel RBF (mạnh mẽ hơn LINEAR)
     svm.setKernel(cv2.ml.SVM_RBF) 
     
     print("Starting SVM Auto-Training (Grid Search)...")
@@ -111,14 +142,11 @@ def train_svm_detector(positive_image_dir: str, negative_image_dir: str, model_s
     print("   nhưng sẽ cho độ chính xác cao hơn.")
     print("   OpenCV không hiển thị tiến độ, hãy kiên nhẫn...")
 
-    # 2. Sử dụng trainAuto để tự tìm C và Gamma tốt nhất
-    # kFold=5 nghĩa là dùng Cross-Validation 5 lần.
-    # Tăng kFold (ví dụ: 10) sẽ chính xác hơn nhưng chậm hơn nữa.
     svm.trainAuto(
         features, 
         cv2.ml.ROW_SAMPLE, 
         labels,
-        kFold=10
+        kFold=3
     )
     
     print("\n✓ Auto-Training complete!")
