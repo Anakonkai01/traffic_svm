@@ -10,7 +10,7 @@ from typing import Optional, List, Tuple
 # CÀI ĐẶT
 # =============================================================================
 # Thư mục nguồn (chứa TẤT CẢ các biển báo đã được lọc)
-SOURCE_DIR = "data_detector/positives" 
+SOURCE_DIR = "check_data" 
 
 # Thư mục đầu ra (nơi chứa các cụm)
 OUTPUT_DIR = "dataset_recognizer_clustered"
@@ -18,7 +18,7 @@ OUTPUT_DIR = "dataset_recognizer_clustered"
 # !!! THAM SỐ QUAN TRỌNG NHẤT !!!
 # Bạn nghĩ có bao nhiêu LOẠI biển báo trong thư mục SOURCE_DIR?
 # Hãy đếm sơ qua và đặt con số đó ở đây.
-NUM_CLUSTERS = 20 # <-- HÃY THAY ĐỔI SỐ NÀY (ví dụ: 5, 8, 15)
+NUM_CLUSTERS = 40 # <-- HÃY THAY ĐỔI SỐ NÀY (ví dụ: 5, 8, 15)
 
 # =============================================================================
 # CẤU HÌNH HOG (PHẢI GIỐNG HỆT CÁC FILE KHÁC)
@@ -84,7 +84,7 @@ def cluster_images():
     print("(Việc này có thể mất vài phút nếu dữ liệu lớn)")
     
     # n_init=10 để chạy 10 lần và chọn kết quả tốt nhất
-    kmeans = KMeans(n_clusters=NUM_CLUSTERS, random_state=42, n_init=20, max_iter=1000)
+    kmeans = KMeans(n_clusters=NUM_CLUSTERS, random_state=42, n_init=30, max_iter=10000)
     kmeans.fit(features_matrix)
     
     # labels_ là một mảng, mỗi phần tử là ID cụm (từ 0 đến K-1)

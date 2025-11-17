@@ -1,0 +1,6 @@
+Configuring SVM...
+Start Auto-Train SVM (Grid Search) ..
+SVM training completed.
+Best C: 2.5
+Best Gamma: 0.03375
+✓ Mô hình Recognizer đã được lưu tại: ../models/svm_sign_recognizer_k20.xml

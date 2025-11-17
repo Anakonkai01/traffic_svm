@@ -143,10 +143,10 @@ def train_recognizer_model(dataset_dir: str, model_save_path: str):
 if __name__ == "__main__":
     # ĐƯỜNG DẪN ĐẦU VÀO
     # Thư mục chứa các thư mục con đã phân loại (ví dụ: '0_stop', '1_turn_left')
-    DATASET_DIR = "data_recognizer" 
+    DATASET_DIR = "../data_recognizer" 
     
     # ĐƯỜNG DẪN ĐẦU RA
-    MODEL_PATH = "svm_sign_recognizer_v3.xml" # Tên model A
+    MODEL_PATH = "../models/svm_sign_recognizer_k20.xml" # Tên model A
     
     if not os.path.isdir(DATASET_DIR):
         print(f"Lỗi: Không tìm thấy thư mục '{DATASET_DIR}'")

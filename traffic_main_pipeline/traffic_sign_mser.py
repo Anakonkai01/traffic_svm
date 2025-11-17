@@ -31,8 +31,8 @@ LOGIC ĐÃ THAY ĐỔI:
 
 DRIVE_PATH = "../"
 
-MODEL_DETECTOR_PATH = DRIVE_PATH + "models/dector_v5_nhut.xml"
-MODEL_RECOGNIZER_PATH = DRIVE_PATH + "models/svm_sign_recognizer_v3.xml"
+MODEL_DETECTOR_PATH = DRIVE_PATH + "models/svm_sign_detector_k20.xml"
+MODEL_RECOGNIZER_PATH = DRIVE_PATH + "models/svm_sign_recognizer_k20.xml"
 
 
 # =============================================================================
