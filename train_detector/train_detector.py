@@ -106,7 +106,7 @@ def train_svm_detector(positive_image_dir: str, negative_image_dir: str, model_s
         features,
         cv2.ml.ROW_SAMPLE,
         labels,
-        kFold=5,
+        kFold=20,
     )
     
     print("SVM training completed.")
@@ -121,8 +121,8 @@ def train_svm_detector(positive_image_dir: str, negative_image_dir: str, model_s
     
 # run 
 if __name__ == "__main__":
-    positive_image_dir = "data_detector/positives"  # Thay bằng thư mục seed/final của bạn
-    negative_image_dir = "data_detector/negatives"  # Thay bằng thư mục seed/final của bạn
-    model_save_path = "svm_sign_detector_v4.xml"     # Path to save the trained model
+    positive_image_dir = "../data_detector/positives"  # Thay bằng thư mục seed/final của bạn
+    negative_image_dir = "../data_detector/negatives"  # Thay bằng thư mục seed/final của bạn
+    model_save_path = "../models/svm_sign_detector_k20.xml"     # Path to save the trained model
     
     train_svm_detector(positive_image_dir, negative_image_dir, model_save_path)

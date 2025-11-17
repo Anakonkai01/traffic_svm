@@ -347,13 +347,13 @@ class TrafficSignConfig:
         # --- Shape detection parameters ---
         self.SHAPE_PARAMS = {
             'circle': {
-                'min_area': 600, 'max_area': 15000,
+                'min_area': 200, 'max_area': 15000,
                 'trust_threshold': 1000,
                 'small_circularity': 0.75,
                 'large_circularity': 0.8
             },
             'triangle': {
-                'min_area': 600, 'max_area': 50000,
+                'min_area': 200, 'max_area': 50000,
                 'trust_threshold': 1500,
                 'min_solidity': 0.7,
                 'epsilon_factor': 0.03,
